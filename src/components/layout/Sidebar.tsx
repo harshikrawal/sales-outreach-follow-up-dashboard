@@ -5,8 +5,11 @@ import { usePathname } from "next/navigation";
 import { Home, Users, UserPlus, Settings } from "lucide-react";
 import clsx from "clsx";
 
+import { useRouter } from "next/navigation";
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const navItems = [
     { name: "Dashboard", href: "/", icon: Home },
@@ -14,6 +17,12 @@ export default function Sidebar() {
     { name: "Add Contact", href: "/contacts/new", icon: UserPlus },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0">
@@ -56,10 +65,7 @@ export default function Sidebar() {
             </div>
           </div>
           <button 
-            onClick={() => {
-              document.cookie = "auth-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-              window.location.href = "/login";
-            }} 
+            onClick={handleLogout}
             className="text-sm text-red-500 hover:text-red-700 text-left cursor-pointer transition-colors pt-2 border-t border-gray-100"
           >
             Log out
