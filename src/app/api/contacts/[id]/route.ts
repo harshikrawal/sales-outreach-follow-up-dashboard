@@ -42,11 +42,17 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         contact.nextFollowUpDate = undefined; // Terminal status
       } else if (newStatus === 'First Follow-Up') {
         const d = new Date();
-        d.setDate(d.getDate() + (settings?.secondFollowUpInterval || 7));
+        d.setDate(d.getDate() + (settings?.firstFollowUpInterval || 5));
         contact.nextFollowUpDate = d;
       } else if (newStatus === 'Second Follow-Up') {
-        contact.nextFollowUpDate = undefined; // Sequence finished
+        const d = new Date();
+        d.setDate(d.getDate() + (settings?.secondFollowUpInterval || 7));
+        contact.nextFollowUpDate = d;
       }
+    }
+
+    if (body.hasOwnProperty('nextFollowUpDate') && body.nextFollowUpDate === null) {
+      contact.nextFollowUpDate = undefined;
     }
 
     await contact.save();

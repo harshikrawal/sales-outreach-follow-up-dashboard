@@ -17,6 +17,7 @@ type NewContactForm = {
   contactSource: string;
   niche: string;
   linkedinUrl: string;
+  rawEmailSequence?: string;
 };
 
 export default function AddContactPage() {
@@ -45,10 +46,41 @@ export default function AddContactPage() {
   const onSubmit = async (data: NewContactForm) => {
     const loadingToast = toast.loading("Adding contact...");
     try {
+      const payload: any = { ...data };
+      
+      if (data.rawEmailSequence) {
+        let outreach = "";
+        let followUp1 = "";
+        let followUp2 = "";
+        const raw = data.rawEmailSequence;
+        
+        // Split by "Email 2" and "Email 3" markers case insensitive
+        const split2Item = raw.match(/Email\s*2/i);
+        const split3Item = raw.match(/Email\s*3/i);
+
+        if (split2Item && split3Item) {
+           const idx2 = split2Item.index!;
+           const idx3 = split3Item.index!;
+           
+           outreach = raw.substring(0, idx2).trim();
+           followUp1 = raw.substring(idx2, idx3).trim();
+           followUp2 = raw.substring(idx3).trim();
+        } else {
+           outreach = raw.trim();
+        }
+
+        payload.emails = {
+          outreach,
+          followUp1,
+          followUp2
+        };
+      }
+      delete payload.rawEmailSequence;
+
       const res = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       
@@ -173,6 +205,18 @@ export default function AddContactPage() {
               <input
                 {...register("contactOwner", { required: true })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-primary focus:border-primary bg-gray-50"
+              />
+            </div>
+            
+            {/* Raw Email Sequence Paste */}
+            <div className="col-span-2 mt-4 pt-6 border-t border-gray-100">
+              <label className="block text-sm font-medium text-gray-900 mb-1">Generated Email Sequence</label>
+              <p className="text-xs text-gray-500 mb-3">Paste the complete 3-part email sequence here. It will be automatically split into Approach, Follow-up 1, and Follow-up 2 segments based on "Email 2" and "Email 3" headers.</p>
+              <textarea
+                {...register("rawEmailSequence")}
+                rows={12}
+                className="w-full border border-gray-300 rounded-md px-4 py-3 text-sm focus:ring-primary focus:border-primary font-mono text-gray-700 shadow-sm leading-relaxed"
+                placeholder="Email 1 — Approach Subject: 20 years of Exposyour...&#10;&#10;Hi [User],&#10;...&#10;&#10;Email 2 — FU1 (5 days later)...&#10;&#10;Email 3 — FU2..."
               />
             </div>
           </div>

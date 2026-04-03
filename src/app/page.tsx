@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Copy, CheckCircle, Clock, AlertTriangle, UserCheck, Trophy, Users } from "lucide-react";
+import { Copy, CheckCircle, Clock, AlertTriangle, UserCheck, Trophy, Users, XCircle } from "lucide-react";
 import clsx from "clsx";
 import { format, differenceInCalendarDays } from "date-fns";
+import Link from "next/link";
 
 import Loading from "@/components/ui/loading";
 
@@ -27,16 +28,26 @@ export default function DashboardPage() {
   }, []);
 
   const handleMarkSent = async (contact: any) => {
-    const nextStatus = contact.status === "Approached" ? "First Follow-Up" : "Second Follow-Up";
-    const loader = toast.loading(`Marking as ${nextStatus}...`);
+    let bodyPayload: any = {};
+    let nextMessage = "";
+    
+    if (contact.status === "Approached") {
+      bodyPayload = { status: "First Follow-Up" };
+      nextMessage = "Moved Queue to First Follow-Up";
+    } else if (contact.status === "First Follow-Up") {
+      bodyPayload = { status: "Second Follow-Up" };
+      nextMessage = "Sequence complete!";
+    }
+
+    const loader = toast.loading(`Updating queue...`);
     try {
       const res = await fetch(`/api/contacts/${contact._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus })
+        body: JSON.stringify(bodyPayload)
       });
       if (res.ok) {
-        toast.success(`Moved to ${nextStatus}`, { id: loader });
+        toast.success(nextMessage, { id: loader });
         fetchDashboard(); // Refresh queue
       }
     } catch {
@@ -45,9 +56,19 @@ export default function DashboardPage() {
   };
 
   const copyEmail = (contact: any) => {
-    const textToCopy = contact.status === "Approached" ? contact.emails?.followUp1 : contact.emails?.followUp2;
+    let textToCopy = "";
+    let emailName = "";
+    
+    if (contact.status === "Approached") {
+      textToCopy = contact.emails?.followUp1;
+      emailName = "Follow-Up 1";
+    } else if (contact.status === "First Follow-Up") {
+      textToCopy = contact.emails?.followUp2;
+      emailName = "Follow-Up 2";
+    }
+
     if (!textToCopy) {
-      toast.error(`No email drafted for ${contact.status === "Approached" ? "Follow-Up 1" : "Follow-Up 2"}`);
+      toast.error(`No email drafted for ${emailName}`);
       return;
     }
     navigator.clipboard.writeText(textToCopy).then(() => {
@@ -75,7 +96,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
            <div>
              <p className="text-sm font-medium text-gray-500">Total Contacts</p>
@@ -115,6 +136,16 @@ export default function DashboardPage() {
              <Trophy className="w-5 h-5 text-purple-600" />
            </div>
         </div>
+
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+           <div>
+             <p className="text-sm font-medium text-red-600">Closed Lost</p>
+             <p className="text-2xl font-bold text-red-700 mt-1">{stats.closedLostCount}</p>
+           </div>
+           <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+             <XCircle className="w-5 h-5 text-red-600" />
+           </div>
+        </div>
       </div>
 
       {/* Action Queue */}
@@ -138,8 +169,8 @@ export default function DashboardPage() {
 
                 return (
                   <li key={contact._id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1">
+                    <div className="flex items-start gap-4 mt-0.5">
+                      <div className="mt-0.5">
                         {isOverdue ? (
                            <AlertTriangle className="w-5 h-5 text-red-500" />
                         ) : (
@@ -147,9 +178,9 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 text-lg">
+                        <Link href={`/contacts/${contact._id}`} className="font-semibold text-gray-900 text-lg hover:text-primary transition-colors flex items-center gap-2 hover:underline">
                           {contact.firstName} {contact.lastName}
-                        </h3>
+                        </Link>
                         <p className="text-sm text-gray-500">{contact.jobTitle} • {contact.niche}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <span className={clsx(

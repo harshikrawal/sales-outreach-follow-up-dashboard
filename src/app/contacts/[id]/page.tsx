@@ -32,6 +32,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
 
   // Edit details state
   const [editMode, setEditMode] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     firstName: "",
     lastName: "",
@@ -121,9 +122,8 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     });
   };
 
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this contact? This cannot be undone.")) return;
-    
+  const confirmDelete = async () => {
+    setDeleteDialogOpen(false);
     toast.loading("Deleting...", { id: "del" });
     try {
       const res = await fetch(`/api/contacts/${unwrappedParams.id}`, { method: "DELETE" });
@@ -170,7 +170,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
               </select>
               <ChevronDown className="w-4 h-4 text-orange-800 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-            <button onClick={handleDelete} title="Delete Contact" className="p-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+            <button onClick={() => setDeleteDialogOpen(true)} title="Delete Contact" className="p-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -367,6 +367,32 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       </div>
+
+      {deleteDialogOpen && (
+        <div className="fixed inset-0 z-[9999] w-[100dvw] h-[100dvh] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setDeleteDialogOpen(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Are you absolutely sure?</h2>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              This action cannot be undone. This will permanently delete 
+              <span className="font-semibold text-gray-900"> {contact.firstName} {contact.lastName}</span> from our servers and remove all associated data.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setDeleteDialogOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+              >
+                Yes, delete contact
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

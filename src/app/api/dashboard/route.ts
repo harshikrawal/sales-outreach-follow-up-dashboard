@@ -9,6 +9,7 @@ export async function GET() {
     const totalContacts = await Contact.countDocuments();
     const connectedCount = await Contact.countDocuments({ status: 'Connected' });
     const closedWonCount = await Contact.countDocuments({ status: 'Closed Won' });
+    const closedLostCount = await Contact.countDocuments({ status: 'Lost' });
 
     // Today's Follow-up Queue
     const endOfToday = new Date();
@@ -28,6 +29,7 @@ export async function GET() {
           totalContacts,
           connectedCount,
           closedWonCount,
+          closedLostCount,
           dueTodayCount,
         },
         queue
