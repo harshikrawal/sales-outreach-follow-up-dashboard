@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import Loading from "@/components/ui/loading";
-import { Search, Users as UsersIcon, Filter, ChevronLeft, ChevronRight, Download, Upload, Check } from "lucide-react";
+import { Search, Users as UsersIcon, ChevronLeft, ChevronRight, Download, Upload, Check } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import clsx from "clsx";
 import toast from "react-hot-toast";
 import Papa from "papaparse";
@@ -266,11 +266,33 @@ export default function ContactsPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-8">
-                    <Loading />
-                  </td>
-                </tr>
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4 border-r border-gray-50 text-center">
+                      <Skeleton className="h-4 w-6 mx-auto" />
+                    </td>
+                    <td className="px-4 py-4 border-r border-gray-50">
+                      <Skeleton className="h-4 w-4 mx-auto rounded" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-4 w-36 mb-1" />
+                      <Skeleton className="h-3 w-28" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-4 w-24 mb-1" />
+                      <Skeleton className="h-3 w-20" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-5 w-24 rounded-full" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                  </tr>
+                ))
               ) : contacts.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">

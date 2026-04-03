@@ -5,6 +5,7 @@
   --foreground: #111827;
   --primary: #cc5500;
   --primary-foreground: #ffffff;
+  --muted: #e5e7eb;
 }
 
 @theme inline {

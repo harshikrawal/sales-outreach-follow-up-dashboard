@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { UserPlus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import Loading from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type NewContactForm = {
   firstName: string;
@@ -95,7 +96,31 @@ export default function AddContactPage() {
     }
   };
 
-  if (loading) return <Loading />;
+  if (loading) return (
+    <div className="max-w-3xl mx-auto">
+      <Skeleton className="h-4 w-32 mb-4" />
+      <Skeleton className="h-8 w-56 mb-1" />
+      <Skeleton className="h-4 w-72 mb-6" />
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <div className="grid grid-cols-2 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i}>
+              <Skeleton className="h-3 w-24 mb-2" />
+              <Skeleton className="h-9 w-full rounded-md" />
+            </div>
+          ))}
+          <div className="col-span-2 pt-6 border-t border-gray-100">
+            <Skeleton className="h-4 w-48 mb-1" />
+            <Skeleton className="h-3 w-80 mb-3" />
+            <Skeleton className="h-36 w-full rounded-md" />
+          </div>
+        </div>
+        <div className="pt-4 flex justify-end">
+          <Skeleton className="h-9 w-28 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
 
   const contactSources = settings?.contactSources?.filter((s: any) => s.active) || [];
   const niches = settings?.niches?.filter((n: any) => n.active) || [];

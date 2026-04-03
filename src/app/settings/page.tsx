@@ -5,6 +5,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import toast from "react-hot-toast";
 import { Settings as SettingsIcon, Save, Plus, Trash2, GripVertical } from "lucide-react";
 import Loading from "@/components/ui/loading";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type DynamicOption = {
   id: string;
@@ -75,7 +76,48 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return <Loading />;
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-9 w-32 rounded-lg" />
+        </div>
+        <div className="space-y-8">
+          {/* Intervals */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <Skeleton className="h-6 w-40 mb-4" />
+            <div className="grid grid-cols-2 gap-6">
+              <div><Skeleton className="h-3 w-32 mb-2" /><Skeleton className="h-9 w-full rounded-md" /></div>
+              <div><Skeleton className="h-3 w-32 mb-2" /><Skeleton className="h-9 w-full rounded-md" /></div>
+            </div>
+          </div>
+          {/* Sources & Niches */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {[0, 1].map(i => (
+              <div key={i} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div className="flex justify-between mb-4">
+                  <Skeleton className="h-6 w-36" />
+                  <Skeleton className="h-5 w-12" />
+                </div>
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, j) => (
+                    <div key={j} className="flex items-center gap-3">
+                      <Skeleton className="w-4 h-4" />
+                      <Skeleton className="h-8 flex-1 rounded-md" />
+                      <Skeleton className="w-10 h-4" />
+                      <Skeleton className="w-4 h-4" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
