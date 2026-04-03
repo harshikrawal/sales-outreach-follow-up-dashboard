@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
-import { ArrowLeft, User, Copy, CheckCircle2, ChevronDown, Trash2 } from "lucide-react";
+import { ArrowLeft, User, Copy, CheckCircle2, ChevronDown, Trash2, Pencil, X } from "lucide-react";
 
 import Loading from "@/components/ui/loading";
 
@@ -22,6 +22,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
   const unwrappedParams = use(params);
   const router = useRouter();
   const [contact, setContact] = useState<any>(null);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Email state
@@ -29,21 +30,48 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
   const [followUp1, setFollowUp1] = useState("");
   const [followUp2, setFollowUp2] = useState("");
 
+  // Edit details state
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    jobTitle: "",
+    contactOwner: "",
+    contactSource: "",
+    niche: "",
+    linkedinUrl: ""
+  });
+
   useEffect(() => {
-    fetch(`/api/contacts/${unwrappedParams.id}`)
-      .then(res => res.json())
-      .then(res => {
-        if (res.success) {
-          setContact(res.data);
-          setOutreach(res.data.emails?.outreach || "");
-          setFollowUp1(res.data.emails?.followUp1 || "");
-          setFollowUp2(res.data.emails?.followUp2 || "");
-        } else {
-          toast.error("Contact not found");
-          router.push("/contacts");
-        }
-      })
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch(`/api/contacts/${unwrappedParams.id}`).then(res => res.json()),
+      fetch("/api/settings").then(res => res.json())
+    ]).then(([contactRes, settingsRes]) => {
+      if (settingsRes.success) setSettings(settingsRes.data);
+      
+      if (contactRes.success) {
+        setContact(contactRes.data);
+        setOutreach(contactRes.data.emails?.outreach || "");
+        setFollowUp1(contactRes.data.emails?.followUp1 || "");
+        setFollowUp2(contactRes.data.emails?.followUp2 || "");
+        
+        setEditForm({
+          firstName: contactRes.data.firstName || "",
+          lastName: contactRes.data.lastName || "",
+          email: contactRes.data.email || "",
+          jobTitle: contactRes.data.jobTitle || "",
+          contactOwner: contactRes.data.contactOwner || "",
+          contactSource: contactRes.data.contactSource || "",
+          niche: contactRes.data.niche || "",
+          linkedinUrl: contactRes.data.linkedinUrl || "",
+        });
+      } else {
+        toast.error("Contact not found");
+        router.push("/contacts");
+      }
+    })
+    .finally(() => setLoading(false));
   }, [unwrappedParams.id, router]);
 
   const updateContact = async (updates: any, silent = false) => {
@@ -76,6 +104,11 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     });
   };
 
+  const handleSaveDetails = () => {
+    updateContact(editForm);
+    setEditMode(false);
+  };
+
   const copyToClipboard = (text: string) => {
     if (!text) {
       toast.error("Nothing to copy!");
@@ -105,6 +138,9 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
 
   if (loading || !contact) return <Loading />;
 
+  const contactSources = settings?.contactSources?.filter((s: any) => s.active) || [];
+  const niches = settings?.niches?.filter((n: any) => n.active) || [];
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -114,16 +150,16 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
         </Link>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               <User className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{contact.firstName} {contact.lastName}</h1>
-              <p className="text-sm text-gray-500">{contact.jobTitle} • {contact.niche}</p>
+              <h1 className="text-2xl font-bold text-gray-900 line-clamp-1">{contact.firstName} {contact.lastName}</h1>
+              <p className="text-sm text-gray-500 line-clamp-1">{contact.jobTitle} • {contact.niche}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
              <div className="relative">
               <select 
                 value={contact.status} 
@@ -134,7 +170,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
               </select>
               <ChevronDown className="w-4 h-4 text-orange-800 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
-            <button onClick={handleDelete} className="p-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+            <button onClick={handleDelete} title="Delete Contact" className="p-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
@@ -144,30 +180,88 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
       <div className="grid md:grid-cols-3 gap-6">
         {/* Left Column - Details & Timeline */}
         <div className="space-y-6">
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-2">
-              Contact Details
+          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4 relative">
+            <h2 className="font-semibold text-gray-900 flex items-center justify-between border-b border-gray-100 pb-2">
+              <span>Contact Details</span>
+              <button 
+                onClick={() => setEditMode(!editMode)} 
+                className="text-xs flex items-center gap-1 text-primary hover:text-orange-700 font-medium bg-orange-50 px-2 py-1 rounded"
+              >
+                {editMode ? <><X className="w-3 h-3"/> Cancel</> : <><Pencil className="w-3 h-3"/> Edit</>}
+              </button>
             </h2>
-            <div className="space-y-3 text-sm">
-              <div>
-                <label className="text-gray-500 text-xs">Email</label>
-                <div className="font-medium text-gray-900">{contact.email}</div>
-              </div>
-              <div>
-                <label className="text-gray-500 text-xs">LinkedIn URL</label>
-                <div className="font-medium text-primary hover:underline break-all">
-                  {contact.linkedinUrl ? <a href={contact.linkedinUrl} target="_blank" rel="noreferrer">{contact.linkedinUrl}</a> : '-'}
+
+            {editMode ? (
+              <div className="space-y-3 text-sm animate-in fade-in slide-in-from-top-2">
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">First Name *</label>
+                  <input value={editForm.firstName} onChange={e => setEditForm({...editForm, firstName: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">Last Name</label>
+                  <input value={editForm.lastName} onChange={e => setEditForm({...editForm, lastName: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">Email *</label>
+                  <input value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">Job Title</label>
+                  <input value={editForm.jobTitle} onChange={e => setEditForm({...editForm, jobTitle: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">Niche</label>
+                  <select value={editForm.niche} onChange={e => setEditForm({...editForm, niche: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                     <option value="">Select...</option>
+                     {niches.map((n: any) => <option key={n.id} value={n.label}>{n.label}</option>)}
+                     {/* Preserve existing even if disabled */}
+                     {editForm.niche && !niches.find((n:any)=>n.label === editForm.niche) && <option value={editForm.niche}>{editForm.niche}</option>}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">Source</label>
+                  <select value={editForm.contactSource} onChange={e => setEditForm({...editForm, contactSource: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+                     <option value="">Select...</option>
+                     {contactSources.map((s: any) => <option key={s.id} value={s.label}>{s.label}</option>)}
+                     {editForm.contactSource && !contactSources.find((s:any)=>s.label === editForm.contactSource) && <option value={editForm.contactSource}>{editForm.contactSource}</option>}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">Owner</label>
+                  <input value={editForm.contactOwner} onChange={e => setEditForm({...editForm, contactOwner: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs block mb-1">LinkedIn URL</label>
+                  <input value={editForm.linkedinUrl} onChange={e => setEditForm({...editForm, linkedinUrl: e.target.value})} className="w-full border border-gray-200 rounded px-2 py-1.5 focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
+                </div>
+                <div className="pt-2">
+                  <button onClick={handleSaveDetails} className="w-full bg-primary hover:bg-orange-700 text-white rounded py-2 text-sm font-medium transition-colors">
+                    Save Changes
+                  </button>
                 </div>
               </div>
-              <div>
-                <label className="text-gray-500 text-xs">Source</label>
-                <div className="font-medium text-gray-900">{contact.contactSource}</div>
+            ) : (
+              <div className="space-y-3 text-sm animate-in fade-in">
+                <div>
+                  <label className="text-gray-500 text-xs">Email</label>
+                  <div className="font-medium text-gray-900 break-all">{contact.email}</div>
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs">LinkedIn URL</label>
+                  <div className="font-medium text-primary hover:underline break-all">
+                    {contact.linkedinUrl ? <a href={contact.linkedinUrl} target="_blank" rel="noreferrer">{contact.linkedinUrl}</a> : '-'}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs">Source</label>
+                  <div className="font-medium text-gray-900">{contact.contactSource}</div>
+                </div>
+                <div>
+                  <label className="text-gray-500 text-xs">Owner</label>
+                  <div className="font-medium text-gray-900">{contact.contactOwner}</div>
+                </div>
               </div>
-              <div>
-                <label className="text-gray-500 text-xs">Owner</label>
-                <div className="font-medium text-gray-900">{contact.contactOwner}</div>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">

@@ -8,6 +8,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
     let query: any = {};
     if (status && status !== 'All Contacts') {
@@ -22,7 +24,17 @@ export async function GET(request: Request) {
       ];
     }
 
-    const contacts = await Contact.find(query).sort({ nextFollowUpDate: 1, dateAdded: -1 });
+    if (startDate || endDate) {
+      query.dateAdded = {};
+      if (startDate) query.dateAdded.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.dateAdded.$lte = end;
+      }
+    }
+
+    const contacts = await Contact.find(query).sort({ dateAdded: -1 });
 
     return NextResponse.json({ success: true, data: contacts });
   } catch (error) {
@@ -36,19 +48,36 @@ export async function POST(request: Request) {
     await connectToDatabase();
     const body = await request.json();
 
+    const Settings = (await import('@/models/Settings')).default;
+    const settings = await Settings.findOne();
+
+    if (Array.isArray(body)) {
+      const contactsToInsert = body.map((item: any) => {
+        const nextFollowUp = new Date();
+        if (settings) {
+          nextFollowUp.setDate(nextFollowUp.getDate() + settings.firstFollowUpInterval);
+        }
+        return {
+          ...item,
+          status: 'Approached',
+          dateAdded: new Date(),
+          statusChangedDate: new Date(),
+          nextFollowUpDate: settings ? nextFollowUp : undefined,
+        };
+      });
+
+      const inserted = await Contact.insertMany(contactsToInsert);
+      return NextResponse.json({ success: true, data: inserted });
+    }
+
     // Default status logic implies new contact is Approached
     const contact = await Contact.create({
       ...body,
       status: 'Approached',
       dateAdded: new Date(),
       statusChangedDate: new Date(),
-      // The nextFollowUpDate should be populated via frontend or backend.
-      // We can let the UI pass it or we fetch settings here. Oh, it's safer to fetch settings here.
     });
 
-    // Populate nextFollowUpDate based on settings
-    const Settings = (await import('@/models/Settings')).default;
-    const settings = await Settings.findOne();
     if (settings) {
       const nextFollowUp = new Date();
       nextFollowUp.setDate(nextFollowUp.getDate() + settings.firstFollowUpInterval);
