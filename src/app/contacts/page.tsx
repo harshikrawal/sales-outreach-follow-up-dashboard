@@ -79,6 +79,11 @@ export default function ContactsPage() {
       "Contact Source": c.contactSource || "",
       "Niche": c.niche || "",
       "LinkedIn URL": c.linkedinUrl || "",
+      "Email Sequence": [
+        c.emails?.outreach ? `Email 1 — Approach\n${c.emails.outreach}` : "",
+        c.emails?.followUp1 ? `Email 2 — FU1\n${c.emails.followUp1}` : "",
+        c.emails?.followUp2 ? `Email 3 — FU2\n${c.emails.followUp2}` : "",
+      ].filter(Boolean).join("\n\n") || "",
     }));
     const csv = Papa.unparse(csvData);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -109,16 +114,37 @@ export default function ContactsPage() {
       skipEmptyLines: true,
       complete: async (results) => {
         const parsed = results.data;
-        const formatted = parsed.map((row: any) => ({
-          firstName: row["First Name"],
-          lastName: row["Last Name"],
-          email: row["Email"],
-          jobTitle: row["Job Title"],
-          contactOwner: row["Contact Owner"],
-          contactSource: row["Contact Source"],
-          niche: row["Niche"],
-          linkedinUrl: row["LinkedIn URL"],
-        }));
+        const formatted = parsed.map((row: any) => {
+          // Parse the Email Sequence column using same logic as Add Contact
+          let emails: { outreach?: string; followUp1?: string; followUp2?: string } = {};
+          const raw: string = row["Email Sequence"] || "";
+          if (raw.trim()) {
+            const split2 = raw.match(/Email\s*2/i);
+            const split3 = raw.match(/Email\s*3/i);
+            if (split2 && split3) {
+              emails.outreach   = raw.substring(0, split2.index!).trim();
+              emails.followUp1  = raw.substring(split2.index!, split3.index!).trim();
+              emails.followUp2  = raw.substring(split3.index!).trim();
+            } else if (split2) {
+              emails.outreach  = raw.substring(0, split2.index!).trim();
+              emails.followUp1 = raw.substring(split2.index!).trim();
+            } else {
+              emails.outreach = raw.trim();
+            }
+          }
+
+          return {
+            firstName:     row["First Name"],
+            lastName:      row["Last Name"],
+            email:         row["Email"],
+            jobTitle:      row["Job Title"],
+            contactOwner:  row["Contact Owner"],
+            contactSource: row["Contact Source"],
+            niche:         row["Niche"],
+            linkedinUrl:   row["LinkedIn URL"],
+            ...(Object.keys(emails).length > 0 ? { emails } : {}),
+          };
+        });
 
         const loader = toast.loading("Importing contacts...");
         try {
