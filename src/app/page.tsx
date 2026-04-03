@@ -1,65 +1,193 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import { Copy, CheckCircle, Clock, AlertTriangle, UserCheck, Trophy, Users } from "lucide-react";
+import clsx from "clsx";
+import { format, differenceInCalendarDays } from "date-fns";
+
+import Loading from "@/components/ui/loading";
+
+export default function DashboardPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = () => {
+    setLoading(true);
+    fetch("/api/dashboard")
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) setData(res.data);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
+  const handleMarkSent = async (contact: any) => {
+    const nextStatus = contact.status === "Approached" ? "First Follow-Up" : "Second Follow-Up";
+    const loader = toast.loading(`Marking as ${nextStatus}...`);
+    try {
+      const res = await fetch(`/api/contacts/${contact._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      if (res.ok) {
+        toast.success(`Moved to ${nextStatus}`, { id: loader });
+        fetchDashboard(); // Refresh queue
+      }
+    } catch {
+      toast.error("Failed to update status", { id: loader });
+    }
+  };
+
+  const copyEmail = (contact: any) => {
+    const textToCopy = contact.status === "Approached" ? contact.emails?.followUp1 : contact.emails?.followUp2;
+    if (!textToCopy) {
+      toast.error(`No email drafted for ${contact.status === "Approached" ? "Follow-Up 1" : "Follow-Up 2"}`);
+      return;
+    }
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      toast.success("Draft copied to clipboard!");
+    });
+  };
+
+  if (loading || !data) return <Loading />;
+
+  const { stats, queue } = data;
+  const today = new Date();
+  
+  const getGreeting = () => {
+    const hour = today.getHours();
+    if (hour < 12) return "Good Morning!";
+    if (hour < 18) return "Good Afternoon!";
+    return "Good Evening!";
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="w-full space-y-8">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900">{getGreeting()}</h1>
+        <p className="text-gray-500 mt-1">Here's your sales outreach overview for today.</p>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+           <div>
+             <p className="text-sm font-medium text-gray-500">Total Contacts</p>
+             <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalContacts}</p>
+           </div>
+           <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+             <Users className="w-5 h-5 text-blue-600" />
+           </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        
+        <div className="bg-white p-6 rounded-xl border border-orange-200 shadow-sm flex items-center justify-between ring-1 ring-orange-200">
+           <div>
+             <p className="text-sm font-medium text-orange-600">Due Today/Overdue</p>
+             <p className="text-2xl font-bold text-orange-700 mt-1">{stats.dueTodayCount}</p>
+           </div>
+           <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+             <Clock className="w-5 h-5 text-orange-600" />
+           </div>
         </div>
-      </main>
+
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+           <div>
+             <p className="text-sm font-medium text-emerald-600">Connected</p>
+             <p className="text-2xl font-bold text-emerald-700 mt-1">{stats.connectedCount}</p>
+           </div>
+           <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+             <UserCheck className="w-5 h-5 text-emerald-600" />
+           </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+           <div>
+             <p className="text-sm font-medium text-purple-600">Closed Won</p>
+             <p className="text-2xl font-bold text-purple-700 mt-1">{stats.closedWonCount}</p>
+           </div>
+           <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+             <Trophy className="w-5 h-5 text-purple-600" />
+           </div>
+        </div>
+      </div>
+
+      {/* Action Queue */}
+      <div>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Today's Action Queue</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          {queue.length === 0 ? (
+            <div className="p-12 pl-12 text-center flex flex-col items-center justify-center">
+               <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
+                 <CheckCircle className="w-8 h-8 text-green-500" />
+               </div>
+               <h3 className="text-lg font-medium text-gray-900">Inbox Zero!</h3>
+               <p className="text-gray-500 max-w-sm mt-1">No follow-ups due today. Check back tomorrow or add some new prospects.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {queue.map((contact: any) => {
+                const dueDate = new Date(contact.nextFollowUpDate);
+                const daysOverdue = differenceInCalendarDays(today, dueDate);
+                const isOverdue = daysOverdue > 0;
+
+                return (
+                  <li key={contact._id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start gap-4">
+                      <div className="mt-1">
+                        {isOverdue ? (
+                           <AlertTriangle className="w-5 h-5 text-red-500" />
+                        ) : (
+                           <Clock className="w-5 h-5 text-orange-500" />
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 text-lg">
+                          {contact.firstName} {contact.lastName}
+                        </h3>
+                        <p className="text-sm text-gray-500">{contact.jobTitle} • {contact.niche}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className={clsx(
+                            "text-xs px-2 py-0.5 rounded-full font-medium",
+                            contact.status === "Approached" ? "bg-blue-50 text-blue-700" : "bg-yellow-50 text-yellow-700"
+                          )}>
+                            Due: {contact.status === "Approached" ? "Follow-Up #1" : "Follow-Up #2"}
+                          </span>
+                          {isOverdue && (
+                             <span className="text-xs text-red-600 font-medium">
+                               {daysOverdue} {daysOverdue === 1 ? 'day' : 'days'} overdue
+                             </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex sm:flex-col md:flex-row items-center gap-3 ml-9 md:ml-0">
+                      <button 
+                        onClick={() => copyEmail(contact)}
+                        className="w-full justify-center md:w-auto px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                      >
+                        <Copy className="w-4 h-4" /> Copy Email
+                      </button>
+                      <button 
+                        onClick={() => handleMarkSent(contact)}
+                        className="w-full justify-center md:w-auto px-4 py-2 border border-transparent bg-primary text-white rounded-lg text-sm font-medium hover:bg-orange-700 flex items-center gap-2 transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4" /> Mark Sent
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,216 @@
+﻿
+DEVELOPER HANDOFF DOCUMENTATION
+Sales Outreach & Follow-Up Management Dashboard
+
+Complete Build Specification for Development Team
+
+Prepared by: Parth Kotadiya
+Version: 1.0
+Date: April 2, 2026
+Status: Ready for Development
+
+1. Project Overview
+1.1 Problem Statement
+As a sales professional using LinkedIn for prospect outreach, a high volume of contacts are generated daily with personalized email sequences (initial outreach plus two follow-ups) drafted for each prospect. Without a structured system to track outreach timing and follow-up schedules, prospects fall through the cracks and revenue opportunities are lost.
+1.2 Solution
+Build a lightweight, single-user sales outreach dashboard that provides the following capabilities:
+• Stores prospect contact records with all relevant fields
+• Holds drafted email sequences per contact (initial outreach plus 2 follow-ups)
+• Automatically calculates follow-up due dates based on configurable intervals
+• Surfaces a daily action list of contacts requiring follow-up today
+• Tracks contact status through the full outreach lifecycle
+• Allows manual status updates when prospects respond
+1.3 Primary User
+Solo salesperson (Parth Kotadiya). This is a single-user application with no multi-user requirement at this stage.
+1.4 Core Modules Overview
+Module #Module NamePurpose1Contact ManagementCRUD operations for prospect records2Email Sequence StorageStore and copy 3 pre-written emails per contact3Follow-Up Scheduling EngineAuto-calculate due dates from configurable intervals4Daily Follow-Up Action ListDashboard home showing today's and overdue follow-ups5Status Management & FilteringManual status updates and list filtering
+2. Module 1 - Contact Management
+2.1 Add New Contact Form
+A form to add a new prospect. The following fields must be present:
+
+FieldTypeRequiredDefaultNotesFirst NameTextYes--Last NameTextYes--EmailEmailYes-Validated email formatJob TitleTextNo-Free textContact OwnerTextYesParth KotadiyaPre-filled, editableContact SourceDropdownYes-Dynamic dropdown (see Section 7)Lead StatusDropdownYesApproachedAuto-set on creation, not editable on formLinkedIn URLURLNo-Validated URL formatNicheDropdownYes-Dynamic dropdown (see Section 7)Date AddedDateYesToday's dateAuto-set, not editable by user
+2.1.1 Dropdown Initial Values
+DropdownInitial ValuesDynamic?Contact SourceLinkedIn, UpworkYes - admin can add new optionsNicheConstruction, Marketing AgencyYes - admin can add new optionsLead StatusApproached, First Follow-Up, Second Follow-Up, Connected, Lost, Closed WonNo - fixed values2.2 Contact List View
+Display all contacts in a sortable, searchable table with the following specifications:
+• Visible columns: Name, Email, Job Title, Niche, Lead Status, Date Added, Next Follow-Up Date
+• Each row is clickable and opens the full contact detail view
+• Filter bar at top: filter by Lead Status (single-select, one active at a time)
+• Search: by name or email (real-time text filtering)
+• Filter persists during session but resets on next login
+2.3 Contact Detail View
+Full record view showing all fields from the contact form, plus:
+• Email sequence section (3 email text areas with Copy buttons - see Module 2)
+• Follow-up timeline (next due date and dates of status changes)
+• Status update control (clickable status selector - see Module 5)
+• Edit button to modify all editable fields inline
+• Delete button with confirmation modal
+
+3. Module 2 - Email Sequence Storage
+Each contact record must include a section to store three pre-written emails. These are stored per contact and persist across sessions.
+
+FieldTypeNotesEmail 1 - OutreachLarge text areaInitial outreach email bodyEmail 2 - First Follow-UpLarge text areaFollow-up #1 email bodyEmail 3 - Second Follow-UpLarge text areaFollow-up #2 email body
+3.1 Behavior Rules
+1. All three fields are available immediately when a contact is created.
+2. User pastes the full email body into each field and saves.
+3. Each email field has a one-click Copy button that copies the full email body to the user's clipboard.
+4. Fields are optional at creation and can be filled or updated at any time.
+5. Copy-to-clipboard must work reliably across Chrome, Safari, and Firefox on desktop.
+Important: No email sending functionality is required. Emails are copied and sent manually by the user through their own email client.
+
+4. Module 3 - Follow-Up Scheduling Engine
+4.1 Global Settings Panel
+A settings page (accessible from dashboard navigation) where the user configures follow-up intervals. These settings apply globally to all contacts.
+
+SettingDescriptionDefaultFirst Follow-Up IntervalDays after initial outreach with no reply before First Follow-Up is due5 daysSecond Follow-Up IntervalDays after First Follow-Up with no reply before Second Follow-Up is due7 days
+Rule: Both values are editable at any time. Changing the interval applies to future due date calculations only - existing scheduled dates are NOT retroactively changed.
+4.2 Follow-Up Date Calculation Logic
+The system must calculate due dates automatically based on the following rules:
+
+Contact Created → Status: Approached
+  → First Follow-Up Due Date = Date Added + First Follow-Up Interval
+
+User sends First Follow-Up manually → Status updated to: First Follow-Up
+  → Second Follow-Up Due Date = Date of Status Change + Second Follow-Up Interval
+
+User sends Second Follow-Up manually → Status updated to: Second Follow-Up
+  → No further follow-ups scheduled
+
+If user updates status to Connected / Lost / Closed Won at any point:
+  → Contact removed from all follow-up scheduling
+  → No further due dates calculated
+4.3 Status-to-Scheduling Relationship
+StatusFollow-Up Scheduled?ActionApproachedYes - First Follow-Up dueSend Email 1, wait for intervalFirst Follow-UpYes - Second Follow-Up dueSend Email 2, wait for intervalSecond Follow-UpNo further follow-upsSequence completeConnectedNoRemoved from follow-up queueLostNoRemoved from follow-up queueClosed WonNoRemoved from follow-up queue
+5. Module 4 - Daily Follow-Up Action List (Dashboard Home)
+This is the first screen the user sees upon login. It contains two sections: summary cards and the follow-up queue.
+5.1 Dashboard Summary Cards
+Four summary cards displayed at the top of the dashboard:
+CardValueDescriptionTotal ContactsCountTotal number of contacts in the systemFollow-Ups Due TodayCountContacts with follow-up due today or overdueContacts ConnectedCountContacts with status = ConnectedContacts Closed WonCountContacts with status = Closed Won5.2 Today's Follow-Up Queue
+A list of all contacts whose next follow-up date is today or overdue (past due date and still in an active follow-up status).
+
+5.2.1 Displayed per Contact in Queue
+• Full Name
+• Job Title + Niche
+• Email address
+• Lead Status (indicating which email is due: First Follow-Up or Second Follow-Up)
+• Days overdue (if past due date, displayed as a warning indicator)
+• Copy Email button - copies the relevant email body to clipboard based on current status
+• Mark Sent button - advances the contact status to the next follow-up stage and recalculates the next due date
+5.2.2 Sorting
+1. Most overdue contacts appear first (highest days overdue at top).
+2. Today's due contacts appear below overdue contacts.
+5.2.3 Empty State
+If no follow-ups are due, display: "No follow-ups due today. Check back tomorrow."
+
+6. Module 5 - Status Management & Filtering
+6.1 Lead Status Values (Fixed)
+StatusMeaningIn Follow-Up Queue?ApproachedInitial outreach sent, awaiting replyYesFirst Follow-UpFirst follow-up email sentYesSecond Follow-UpSecond follow-up email sentNo (sequence complete)ConnectedProspect has responded positivelyNoLostProspect not interested or unresponsiveNoClosed WonDeal successfully closedNo6.2 Manual Status Update
+From any contact detail view, the user can manually change the Lead Status using a dropdown or button group. This is the primary mechanism for marking a prospect as Connected, Lost, or Closed Won when they reply.
+
+6.2.1 Behavior on Status Change
+• Status updates immediately and saves to the database
+• If updated to Connected, Lost, or Closed Won: contact is removed from follow-up queue immediately
+• No further follow-up dates are calculated for terminal statuses
+• Contact remains fully visible in the contact list with the updated status
+• The date of the status change is recorded for timeline tracking
+6.3 Status Filter on Contact List
+The contact list view must include a filter bar with buttons to filter all contacts by Lead Status:
+• All Contacts (default view)
+• Approached
+• First Follow-Up
+• Second Follow-Up
+• Connected
+• Lost
+• Closed Won
+
+Rules: Active filter is visually highlighted. Only one filter active at a time. Filter persists during the session but resets on next login.
+
+7. Dynamic Dropdown Management
+All dropdowns marked as Dynamic in the Contact form must be manageable from a settings/admin panel without developer involvement.
+7.1 Dropdowns Requiring Management
+DropdownInitial ValuesManagement RequiredContact SourceLinkedIn, UpworkFull CRUD from settingsNicheConstruction, Marketing AgencyFull CRUD from settings7.2 Admin Capabilities
+For each dynamic dropdown, the admin must be able to:
+1. Add new option: text input + save button
+2. Edit existing option label (inline rename)
+3. Deactivate an option: hides from future entries without deleting historical data that uses that value
+4. Reorder options in the dropdown list (drag or up/down arrows)
+
+8. Navigation Structure
+The application must follow this navigation hierarchy:
+
+Dashboard (Home) - Today's Follow-Up Queue + Summary Cards
+  |
+Contacts - Full contact list with filter + search
+  |-- Contact Detail - Individual record, emails, status, timeline
+  |-- Add New Contact - New contact form
+  |
+Settings
+  |-- Follow-Up Intervals - Configure day intervals
+  |-- Dropdown Manager - Manage Contact Source and Niche options
+
+A persistent sidebar or top navigation should allow direct access to Dashboard, Contacts, Add Contact, and Settings at all times.
+
+9. Technical Requirements
+9.1 General
+RequirementDetailsUsersSingle-user application. Simple login (username + password) is sufficient.Data PersistenceAll data must persist in a database - no local storage or session-only storage.Date HandlingAll date calculations must be based on server date, not browser date.PlatformDesktop-first. Mobile responsiveness is not a priority for v1.Browser SupportChrome, Safari, and Firefox on desktop. Clipboard API must work on all three.9.2 Key Technical Behaviors
+• Follow-up due dates must be visible on both the contact detail view and the daily queue without requiring the user to calculate manually.
+• Copy-to-clipboard button must work reliably across Chrome, Safari, and Firefox on desktop.
+• No email sending functionality is required - emails are copied and sent manually by the user through their own email client.
+• Changing follow-up interval settings applies only to future calculations; existing scheduled dates are not retroactively changed.
+• Deactivating a dropdown option hides it from future entries but must preserve historical data using that value.
+9.3 Suggested Tech Stack (Flexible)
+The following is a recommended stack. The developer may choose an equivalent stack if preferred, as long as all functional requirements are met.
+LayerRecommendationNotesFrontendReact / Next.jsComponent-based, good for dashboard UIsBackendNode.js / Express or Next.js API RoutesSimple REST API layerDatabasePostgreSQL or MongoDBPersistent storage for contacts, settings, emailsORMPrisma or MongooseStructured data accessAuthSimple session-based authUsername + password, single userHostingVercel / Railway / RenderQuick deployment, free tier available
+10. Data Model Reference
+Below is the recommended data structure. The developer should adapt field types to their chosen database.
+10.1 Contact Record
+FieldTypeRequiredNotesidUUID / Auto IDAutoPrimary keyfirstNameStringYes-lastNameStringYes-emailStringYesValidated email formatjobTitleStringNo-contactOwnerStringYesDefault: Parth KotadiyacontactSourceStringYesFrom dynamic dropdownstatusEnum / StringYesOne of 6 fixed Lead Status valueslinkedinUrlStringNoValidated URLnicheStringYesFrom dynamic dropdowndateAddedDateYesAuto-set to server date on creationstatusChangedDateDateYesUpdated on every status changeemails.outreachTextNoInitial outreach email bodyemails.followUp1TextNoFirst follow-up email bodyemails.followUp2TextNoSecond follow-up email body10.2 Settings Record
+FieldTypeDefaultNotesfirstFollowUpIntervalInteger5Days until first follow-up is duesecondFollowUpIntervalInteger7Days until second follow-up is duecontactSources[]Array of ObjectsLinkedIn, UpworkEach: { id, label, active, order }niches[]Array of ObjectsConstruction, Marketing AgencyEach: { id, label, active, order }
+11. Out of Scope - Version 1
+The following features are explicitly excluded from this build and may be considered for future versions:
+• Automated email sending (SMTP integration)
+• Email open or click tracking
+• Multi-user or team access / role-based permissions
+• CRM integrations (HubSpot, Salesforce, etc.)
+• LinkedIn integration or scraping
+• Mobile application (native iOS/Android)
+• Reporting or analytics beyond the 4 summary cards
+• Notes or activity log per contact
+• Bulk import/export of contacts
+• Email template library or variable substitution
+
+12. Acceptance Criteria
+The system is considered complete and ready for use when all of the following are verified:
+
+1. A new contact can be added with all required fields in under 60 seconds.
+2. All 3 email drafts can be saved to a contact and each copied to clipboard with one click.
+3. Follow-up due dates calculate automatically based on configured intervals without any manual date input from the user.
+4. The dashboard home shows all contacts with follow-ups due today or overdue, on every page load.
+5. Manually updating a contact to Connected, Lost, or Closed Won removes them from the follow-up queue immediately.
+6. Contact list can be filtered by any Lead Status value in one click.
+7. Dropdown options for Contact Source and Niche can be added, edited, deactivated, and reordered from the settings panel without developer involvement.
+8. Follow-up interval settings can be updated from the settings panel and correctly affect future (not past) due date calculations.
+9. All data persists across browser sessions (server-side database, not localStorage).
+10. Clipboard copy works correctly on Chrome, Safari, and Firefox desktop browsers.
+
+13. UI/UX Reference Notes
+The following are design guidelines, not strict requirements. The developer has creative freedom within these constraints.
+13.1 General Design Direction
+• Clean, professional, utilitarian aesthetic suitable for a daily-use sales tool
+• Sidebar navigation for primary sections (Dashboard, Contacts, Add Contact, Settings)
+• Warm neutral color palette (cream/beige backgrounds, dark text, burnt-orange accent for primary actions)
+• Status badges should be color-coded for quick visual scanning
+• Tables should have alternating row shading and clear column headers
+• Forms should use a two-column grid layout where space allows
+• All destructive actions (delete) require a confirmation modal
+13.2 Key Interaction Patterns
+• Toast notifications for success/error feedback (auto-dismiss after 2-3 seconds)
+• Inline editing on the contact detail page (edit mode toggle, not a separate page)
+• One-click filter pills/buttons for status filtering on the contact list
+• Real-time search filtering (no submit button required)
+• Mark Sent button on the follow-up queue should feel prominent and satisfying to click
+
+END OF DOCUMENT
+Sales Outreach Dashboard	Developer Handoff v1.0
+
+Page 
+

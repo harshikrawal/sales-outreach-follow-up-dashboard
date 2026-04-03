@@ -1,0 +1,278 @@
+"use client";
+
+import { useEffect, useState, use } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import toast from "react-hot-toast";
+import { format } from "date-fns";
+import { ArrowLeft, User, Copy, CheckCircle2, ChevronDown, Trash2 } from "lucide-react";
+
+import Loading from "@/components/ui/loading";
+
+const StatusOptions = [
+  "Approached",
+  "First Follow-Up",
+  "Second Follow-Up",
+  "Connected",
+  "Lost",
+  "Closed Won"
+];
+
+export default function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const unwrappedParams = use(params);
+  const router = useRouter();
+  const [contact, setContact] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Email state
+  const [outreach, setOutreach] = useState("");
+  const [followUp1, setFollowUp1] = useState("");
+  const [followUp2, setFollowUp2] = useState("");
+
+  useEffect(() => {
+    fetch(`/api/contacts/${unwrappedParams.id}`)
+      .then(res => res.json())
+      .then(res => {
+        if (res.success) {
+          setContact(res.data);
+          setOutreach(res.data.emails?.outreach || "");
+          setFollowUp1(res.data.emails?.followUp1 || "");
+          setFollowUp2(res.data.emails?.followUp2 || "");
+        } else {
+          toast.error("Contact not found");
+          router.push("/contacts");
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [unwrappedParams.id, router]);
+
+  const updateContact = async (updates: any, silent = false) => {
+    const loader = silent ? undefined : toast.loading("Updating...");
+    try {
+      const res = await fetch(`/api/contacts/${unwrappedParams.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setContact(json.data);
+        if (!silent) toast.success("Updated successfully!", { id: loader });
+      } else {
+        throw new Error(json.error);
+      }
+    } catch (e: any) {
+      if (!silent) toast.error(e.message || "Update failed", { id: loader });
+    }
+  };
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    updateContact({ status: e.target.value });
+  };
+
+  const handleSaveEmails = () => {
+    updateContact({ 
+      emails: { outreach, followUp1, followUp2 } 
+    });
+  };
+
+  const copyToClipboard = (text: string) => {
+    if (!text) {
+      toast.error("Nothing to copy!");
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Copied to clipboard!");
+    }).catch(() => {
+      toast.error("Failed to copy");
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this contact? This cannot be undone.")) return;
+    
+    toast.loading("Deleting...", { id: "del" });
+    try {
+      const res = await fetch(`/api/contacts/${unwrappedParams.id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Deleted", { id: "del" });
+        router.push("/contacts");
+      }
+    } catch (e) {
+      toast.error("Delete failed", { id: "del" });
+    }
+  }
+
+  if (loading || !contact) return <Loading />;
+
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header */}
+      <div>
+        <Link href="/contacts" className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 mb-4">
+          <ArrowLeft className="w-4 h-4" /> Back to Contacts
+        </Link>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{contact.firstName} {contact.lastName}</h1>
+              <p className="text-sm text-gray-500">{contact.jobTitle} • {contact.niche}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+             <div className="relative">
+              <select 
+                value={contact.status} 
+                onChange={handleStatusChange}
+                className="appearance-none pl-4 pr-10 py-2 border border-orange-200 bg-orange-50 text-orange-800 font-semibold rounded-lg text-sm focus:ring-primary focus:border-primary shadow-sm outline-none cursor-pointer"
+              >
+                {StatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <ChevronDown className="w-4 h-4 text-orange-800 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+            <button onClick={handleDelete} className="p-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Left Column - Details & Timeline */}
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-2">
+              Contact Details
+            </h2>
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className="text-gray-500 text-xs">Email</label>
+                <div className="font-medium text-gray-900">{contact.email}</div>
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs">LinkedIn URL</label>
+                <div className="font-medium text-primary hover:underline break-all">
+                  {contact.linkedinUrl ? <a href={contact.linkedinUrl} target="_blank" rel="noreferrer">{contact.linkedinUrl}</a> : '-'}
+                </div>
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs">Source</label>
+                <div className="font-medium text-gray-900">{contact.contactSource}</div>
+              </div>
+              <div>
+                <label className="text-gray-500 text-xs">Owner</label>
+                <div className="font-medium text-gray-900">{contact.contactOwner}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+             <h2 className="font-semibold text-gray-900 flex items-center gap-2 border-b border-gray-100 pb-2">
+              Follow-up Timeline
+            </h2>
+             <div className="space-y-4 text-sm mt-3 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent">
+               
+               <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-white bg-gray-200 text-slate-500 font-bold shrink-0 z-10 mx-0 md:mx-auto">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.25rem)] p-3 rounded border border-gray-100 bg-gray-50 ml-3 md:ml-0 md:mr-3">
+                     <div className="text-xs text-gray-500">Date Added</div>
+                     <div className="font-medium text-gray-900">{format(new Date(contact.dateAdded), 'MMM d, yyyy')}</div>
+                  </div>
+               </div>
+
+                <div className="relative flex items-center justify-between md:justify-normal md:even:flex-row-reverse group is-active">
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full border border-white bg-gray-200 text-slate-500 font-bold shrink-0 z-10 mx-0 md:mx-auto">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                  </div>
+                   <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.25rem)] p-3 rounded border border-gray-100 bg-gray-50 ml-3 md:ml-0 md:mr-3">
+                     <div className="text-xs text-gray-500">Status Changed</div>
+                     <div className="font-medium text-gray-900">{format(new Date(contact.statusChangedDate), 'MMM d, h:mm a')}</div>
+                  </div>
+               </div>
+
+               {contact.nextFollowUpDate && (
+                 <div className="relative flex items-center justify-between md:justify-normal md:even:flex-row-reverse group is-active mt-4">
+                  <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.25rem)] p-3 rounded border border-orange-200 bg-orange-50 ml-3 md:ml-0 md:mr-3">
+                     <div className="text-xs text-orange-700 font-semibold">Next Follow-Up Due</div>
+                     <div className="font-bold text-orange-900 text-base">{format(new Date(contact.nextFollowUpDate), 'MMM d, yyyy')}</div>
+                  </div>
+               </div>
+               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Email Sequences */}
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Email Sequence Drafts</h2>
+                <p className="text-sm text-gray-500">Draft, store, and copy your outreach messages.</p>
+              </div>
+              <button onClick={handleSaveEmails} className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                Save Drafts
+              </button>
+            </div>
+
+            <div className="space-y-6">
+               <div className="space-y-2">
+                 <div className="flex justify-between items-end">
+                   <label className="block text-sm font-semibold text-gray-700">1. Initial Outreach</label>
+                   <button onClick={() => copyToClipboard(outreach)} className="text-primary hover:text-orange-700 text-xs font-medium flex items-center gap-1">
+                     <Copy className="w-3.5 h-3.5" /> Copy Text
+                   </button>
+                 </div>
+                 <textarea 
+                   rows={5} 
+                   value={outreach}
+                   onChange={e => setOutreach(e.target.value)}
+                   className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-primary focus:border-primary shadow-sm"
+                   placeholder="Hi [Name], I noticed..."
+                  />
+               </div>
+
+               <div className="space-y-2">
+                 <div className="flex justify-between items-end">
+                   <label className="block text-sm font-semibold text-gray-700">2. First Follow-Up</label>
+                   <button onClick={() => copyToClipboard(followUp1)} className="text-primary hover:text-orange-700 text-xs font-medium flex items-center gap-1">
+                     <Copy className="w-3.5 h-3.5" /> Copy Text
+                   </button>
+                 </div>
+                 <textarea 
+                   rows={4} 
+                   value={followUp1}
+                   onChange={e => setFollowUp1(e.target.value)}
+                   className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-primary focus:border-primary shadow-sm"
+                   placeholder="Just floating this to the top of your inbox..."
+                  />
+               </div>
+
+               <div className="space-y-2">
+                 <div className="flex justify-between items-end">
+                   <label className="block text-sm font-semibold text-gray-700">3. Second Follow-Up (Break-up)</label>
+                   <button onClick={() => copyToClipboard(followUp2)} className="text-primary hover:text-orange-700 text-xs font-medium flex items-center gap-1">
+                     <Copy className="w-3.5 h-3.5" /> Copy Text
+                   </button>
+                 </div>
+                 <textarea 
+                   rows={4} 
+                   value={followUp2}
+                   onChange={e => setFollowUp2(e.target.value)}
+                   className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-primary focus:border-primary shadow-sm"
+                   placeholder="I imagine this isn't a priority right now..."
+                  />
+               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
