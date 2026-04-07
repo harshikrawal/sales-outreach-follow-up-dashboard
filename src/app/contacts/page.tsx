@@ -5,6 +5,8 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Search, Users as UsersIcon, ChevronLeft, ChevronRight, Download, Upload, Check, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
 import clsx from "clsx";
 import toast from "react-hot-toast";
 import Papa from "papaparse";
@@ -28,6 +30,7 @@ export default function ContactsPage() {
   const itemsPerPage = 10;
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const Statuses = [
     "All Contacts",
@@ -106,8 +109,7 @@ export default function ContactsPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} contacts? This cannot be undone.`)) return;
-    
+    setShowDeleteModal(false);
     const loader = toast.loading("Deleting contacts...");
     try {
       const res = await fetch("/api/contacts", {
@@ -273,7 +275,7 @@ export default function ContactsPage() {
           <div className="flex items-center gap-4 w-full xl:w-auto flex-shrink-0">
             {selectedIds.length > 0 && (
               <button
-                onClick={handleBulkDelete}
+                onClick={() => setShowDeleteModal(true)}
                 className="bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm flex-shrink-0"
               >
                 <Trash2 className="w-4 h-4" /> Bulk Delete ({selectedIds.length})
@@ -443,6 +445,37 @@ export default function ContactsPage() {
         )}
 
       </div>
+
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Confirm Bulk Delete"
+        footer={
+          <>
+            <Button
+              className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-none border-solid"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white border-none"
+              onClick={handleBulkDelete}
+            >
+              Delete {selectedIds.length} Contacts
+            </Button>
+          </>
+        }
+      >
+        <div className="flex items-center gap-3 text-red-600 mb-2">
+          <Trash2 className="w-5 h-5" />
+          <span className="font-semibold">Are you absolutely sure?</span>
+        </div>
+        <p className="text-sm text-gray-500">
+          This action will permanently delete <span className="font-bold text-gray-900">{selectedIds.length}</span> selected contacts.
+          This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { format } from "date-fns";
 import { ArrowLeft, User, Copy, CheckCircle2, ChevronDown, Trash2, Pencil, X } from "lucide-react";
 
 import Loading from "@/components/ui/loading";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
 
 const StatusOptions = [
   "Approached",
@@ -368,31 +370,32 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      {deleteDialogOpen && (
-        <div className="fixed inset-0 z-[9999] w-[100dvw] h-[100dvh] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setDeleteDialogOpen(false)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Are you absolutely sure?</h2>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              This action cannot be undone. This will permanently delete 
-              <span className="font-semibold text-gray-900"> {contact.firstName} {contact.lastName}</span> from our servers and remove all associated data.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setDeleteDialogOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={confirmDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
-              >
-                Yes, delete contact
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        title="Delete Contact"
+        footer={
+          <>
+            <Button
+              className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-none border-solid"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white border-none"
+              onClick={confirmDelete}
+            >
+              Yes, delete contact
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-500 leading-relaxed">
+          This action cannot be undone. This will permanently delete 
+          <span className="font-semibold text-gray-900"> {contact.firstName} {contact.lastName}</span> from our servers and remove all associated data.
+        </p>
+      </Modal>
     </div>
   );
 }
