@@ -91,3 +91,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message || 'Failed to create contact' }, { status: 400 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+    const { ids } = body;
+    
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ success: false, error: 'No IDs provided' }, { status: 400 });
+    }
+
+    await Contact.deleteMany({ _id: { $in: ids } });
+    return NextResponse.json({ success: true, deletedCount: ids.length });
+  } catch (error: any) {
+    console.error("Failed to delete contacts", error);
+    return NextResponse.json({ success: false, error: 'Failed to delete contacts' }, { status: 500 });
+  }
+}

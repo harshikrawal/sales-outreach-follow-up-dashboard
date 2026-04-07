@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Search, Users as UsersIcon, ChevronLeft, ChevronRight, Download, Upload, Check } from "lucide-react";
+import { Search, Users as UsersIcon, ChevronLeft, ChevronRight, Download, Upload, Check, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import clsx from "clsx";
 import toast from "react-hot-toast";
@@ -103,6 +103,28 @@ export default function ContactsPage() {
     }
     toast.success(selectedIds.length > 0 ? 'Exporting selected...' : 'Exporting entries...');
     downloadCSV(dataToExport, selectedIds.length > 0 ? 'selected_contacts.csv' : 'contacts.csv');
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} contacts? This cannot be undone.`)) return;
+    
+    const loader = toast.loading("Deleting contacts...");
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      if (res.ok) {
+        toast.success("Contacts deleted successfully", { id: loader });
+        setSelectedIds([]);
+        fetchContacts();
+      } else {
+        toast.error("Failed to delete contacts", { id: loader });
+      }
+    } catch {
+      toast.error("Error connecting to server", { id: loader });
+    }
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,17 +227,17 @@ export default function ContactsPage() {
               className="hidden" 
             />
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
-            >
-              <Upload className="w-4 h-4" /> Import CSV
-            </button>
-            
-            <button
               onClick={handleExport}
               className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
             >
-              <Download className="w-4 h-4" /> Export
+              <Upload className="w-4 h-4" /> Export
+            </button>
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Import CSV
             </button>
 
             <Link
@@ -248,15 +270,25 @@ export default function ContactsPage() {
             ))}
           </div>
 
-          <div className="relative w-full sm:w-64 flex-shrink-0">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary shadow-sm"
-            />
+          <div className="flex items-center gap-4 w-full xl:w-auto flex-shrink-0">
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                className="bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm flex-shrink-0"
+              >
+                <Trash2 className="w-4 h-4" /> Bulk Delete ({selectedIds.length})
+              </button>
+            )}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary shadow-sm"
+              />
+            </div>
           </div>
         </div>
 
