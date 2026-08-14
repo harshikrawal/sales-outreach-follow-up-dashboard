@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
@@ -13,8 +13,9 @@ import toast from "react-hot-toast";
 import Papa from "papaparse";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import Loading from "@/components/ui/loading";
 
-export default function ContactsPage() {
+function ContactsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -603,5 +604,13 @@ export default function ContactsPage() {
         </p>
       </Modal>
     </div>
+  );
+}
+
+export default function ContactsPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ContactsPageContent />
+    </Suspense>
   );
 }

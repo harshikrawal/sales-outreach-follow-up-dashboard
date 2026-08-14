@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import toast from "react-hot-toast";
 import { Copy, CheckCircle, Clock, AlertTriangle, UserCheck, Trophy, Users, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
@@ -11,7 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Loading from "@/components/ui/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -533,5 +533,13 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
