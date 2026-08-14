@@ -5,20 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { format } from "date-fns";
-import { ArrowLeft, User, Copy, CheckCircle2, ChevronDown, Trash2, Pencil, X } from "lucide-react";
+import { ArrowLeft, User, Copy, CheckCircle2, ChevronDown, Trash2, Pencil, X, Plus } from "lucide-react";
 
 import Loading from "@/components/ui/loading";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-
-const StatusOptions = [
-  "Approached",
-  "First Follow-Up",
-  "Second Follow-Up",
-  "Connected",
-  "Lost",
-  "Closed Won"
-];
 
 export default function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const unwrappedParams = use(params);
@@ -27,10 +18,21 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Email state
-  const [outreach, setOutreach] = useState("");
-  const [followUp1, setFollowUp1] = useState("");
-  const [followUp2, setFollowUp2] = useState("");
+  // Email sequence state
+  const [emailSequence, setEmailSequence] = useState<any[]>([]);
+
+  const steps = settings?.followUpSteps || [
+    { label: "First Follow-Up" },
+    { label: "Second Follow-Up" }
+  ];
+
+  const statusOptions = Array.from(new Set([
+    "Approached",
+    ...steps.map((s: any) => s.label),
+    "Connected",
+    "Lost",
+    "Closed Won"
+  ]));
 
   // Edit details state
   const [editMode, setEditMode] = useState(false);
@@ -55,9 +57,17 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
       
       if (contactRes.success) {
         setContact(contactRes.data);
-        setOutreach(contactRes.data.emails?.outreach || "");
-        setFollowUp1(contactRes.data.emails?.followUp1 || "");
-        setFollowUp2(contactRes.data.emails?.followUp2 || "");
+        let seq = contactRes.data.emailSequence;
+        if (!seq || seq.length === 0) {
+          seq = [
+            { id: "1", label: "Initial Outreach", content: contactRes.data.emails?.outreach || "" },
+            { id: "2", label: "First Follow-Up", content: contactRes.data.emails?.followUp1 || "" },
+            { id: "3", label: "Second Follow-Up (Break-up)", content: contactRes.data.emails?.followUp2 || "" },
+            { id: "4", label: "Third Follow-Up", content: contactRes.data.emails?.followUp3 || "" },
+            { id: "5", label: "Fourth Follow-Up", content: contactRes.data.emails?.followUp4 || "" },
+          ].filter((item: any, idx: number) => idx < 3 || item.content !== "");
+        }
+        setEmailSequence(seq);
         
         setEditForm({
           firstName: contactRes.data.firstName || "",
@@ -103,7 +113,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
 
   const handleSaveEmails = () => {
     updateContact({ 
-      emails: { outreach, followUp1, followUp2 } 
+      emailSequence
     });
   };
 
@@ -147,9 +157,9 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <Link href="/contacts" className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 mb-4">
-          <ArrowLeft className="w-4 h-4" /> Back to Contacts
-        </Link>
+        <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1 mb-4 border-none bg-transparent outline-none cursor-pointer">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -168,7 +178,7 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                 onChange={handleStatusChange}
                 className="appearance-none pl-4 pr-10 py-2 border border-orange-200 bg-orange-50 text-orange-800 font-semibold rounded-lg text-sm focus:ring-primary focus:border-primary shadow-sm outline-none cursor-pointer"
               >
-                {StatusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <ChevronDown className="w-4 h-4 text-orange-800 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
@@ -312,59 +322,82 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
                 <h2 className="text-lg font-semibold text-gray-900">Email Sequence Drafts</h2>
                 <p className="text-sm text-gray-500">Draft, store, and copy your outreach messages.</p>
               </div>
-              <button onClick={handleSaveEmails} className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                Save Drafts
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    const stepNames = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh"];
+                    const nextIndex = emailSequence.length;
+                    const name = nextIndex === 0 
+                      ? "Initial Outreach" 
+                      : `${stepNames[nextIndex - 1] || nextIndex} Follow-Up`;
+                    setEmailSequence([
+                      ...emailSequence,
+                      {
+                        id: Math.random().toString(36).substr(2, 9),
+                        label: name,
+                        content: ""
+                      }
+                    ]);
+                  }}
+                  className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                >
+                  <Plus className="w-4 h-4" /> Add Email
+                </button>
+                <button onClick={handleSaveEmails} className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                  Save Drafts
+                </button>
+              </div>
             </div>
-
             <div className="space-y-6">
-               <div className="space-y-2">
-                 <div className="flex justify-between items-end">
-                   <label className="block text-sm font-semibold text-gray-700">1. Initial Outreach</label>
-                   <button onClick={() => copyToClipboard(outreach)} className="text-primary hover:text-orange-700 text-xs font-medium flex items-center gap-1">
-                     <Copy className="w-3.5 h-3.5" /> Copy Text
-                   </button>
+               {emailSequence.map((step, index) => (
+                 <div key={step.id || index} className="space-y-2 border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                   <div className="flex justify-between items-center">
+                     <div className="flex-1 mr-4">
+                       <input 
+                         type="text"
+                         value={step.label}
+                         onChange={e => {
+                           const newSeq = [...emailSequence];
+                           newSeq[index].label = e.target.value;
+                           setEmailSequence(newSeq);
+                         }}
+                         className="font-semibold text-gray-700 border-b border-transparent hover:border-gray-300 focus:border-primary px-1 py-0.5 outline-none bg-transparent w-full text-sm"
+                       />
+                     </div>
+                     <div className="flex items-center gap-3">
+                       <button onClick={() => copyToClipboard(step.content)} className="text-primary hover:text-orange-700 text-xs font-medium flex items-center gap-1">
+                         <Copy className="w-3.5 h-3.5" /> Copy Text
+                       </button>
+                       {emailSequence.length > 1 && (
+                         <button 
+                           onClick={() => {
+                             const newSeq = emailSequence.filter((_, i) => i !== index);
+                             setEmailSequence(newSeq);
+                           }} 
+                           className="text-red-500 hover:text-red-700"
+                           title="Delete Email Draft"
+                         >
+                           <Trash2 className="w-4 h-4" />
+                         </button>
+                       )}
+                     </div>
+                   </div>
+                   <textarea 
+                     rows={index === 0 ? 5 : 4} 
+                     value={step.content}
+                     onChange={e => {
+                       const newSeq = [...emailSequence];
+                       newSeq[index].content = e.target.value;
+                       setEmailSequence(newSeq);
+                     }}
+                     className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-primary focus:border-primary shadow-sm"
+                     placeholder={index === 0 ? "Hi [Name], I noticed..." : "Just checking in..."}
+                    />
                  </div>
-                 <textarea 
-                   rows={5} 
-                   value={outreach}
-                   onChange={e => setOutreach(e.target.value)}
-                   className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-primary focus:border-primary shadow-sm"
-                   placeholder="Hi [Name], I noticed..."
-                  />
-               </div>
-
-               <div className="space-y-2">
-                 <div className="flex justify-between items-end">
-                   <label className="block text-sm font-semibold text-gray-700">2. First Follow-Up</label>
-                   <button onClick={() => copyToClipboard(followUp1)} className="text-primary hover:text-orange-700 text-xs font-medium flex items-center gap-1">
-                     <Copy className="w-3.5 h-3.5" /> Copy Text
-                   </button>
-                 </div>
-                 <textarea 
-                   rows={4} 
-                   value={followUp1}
-                   onChange={e => setFollowUp1(e.target.value)}
-                   className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-primary focus:border-primary shadow-sm"
-                   placeholder="Just floating this to the top of your inbox..."
-                  />
-               </div>
-
-               <div className="space-y-2">
-                 <div className="flex justify-between items-end">
-                   <label className="block text-sm font-semibold text-gray-700">3. Second Follow-Up (Break-up)</label>
-                   <button onClick={() => copyToClipboard(followUp2)} className="text-primary hover:text-orange-700 text-xs font-medium flex items-center gap-1">
-                     <Copy className="w-3.5 h-3.5" /> Copy Text
-                   </button>
-                 </div>
-                 <textarea 
-                   rows={4} 
-                   value={followUp2}
-                   onChange={e => setFollowUp2(e.target.value)}
-                   className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-primary focus:border-primary shadow-sm"
-                   placeholder="I imagine this isn't a priority right now..."
-                  />
-               </div>
+               ))}
+               {emailSequence.length === 0 && (
+                 <p className="text-sm text-gray-500 italic text-center py-8">No email drafts configured.</p>
+               )}
             </div>
           </div>
         </div>

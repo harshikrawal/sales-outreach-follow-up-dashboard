@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { Search, Users as UsersIcon, ChevronLeft, ChevronRight, Download, Upload, Check, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,25 +15,33 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 export default function ContactsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Parse initial values from search params
+  const parsedPage = parseInt(searchParams.get("page") || "1", 10);
+  const initialPage = isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+  const initialFilter = searchParams.get("status") || "All Contacts";
+  const initialSearch = searchParams.get("search") || "";
+
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All Contacts");
+  const [search, setSearch] = useState(initialSearch);
+  const [filter, setFilter] = useState(initialFilter);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   
   const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
   const [startDate, endDate] = dateRange;
   
   // Selection
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const initialLimit = parseInt(searchParams.get("limit") || "10", 10);
+  const [itemsPerPage, setItemsPerPage] = useState(isNaN(initialLimit) || initialLimit < 1 ? 10 : initialLimit);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const Statuses = [
+  const [statuses, setStatuses] = useState<string[]>([
     "All Contacts",
     "Approached",
     "First Follow-Up",
@@ -40,7 +49,27 @@ export default function ContactsPage() {
     "Connected",
     "Lost",
     "Closed Won"
-  ];
+  ]);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then(res => res.json())
+      .then(res => {
+        if (res.success && res.data) {
+          const steps = res.data.followUpSteps || [];
+          const dynamicStatuses = [
+            "All Contacts",
+            "Approached",
+            ...steps.map((s: any) => s.label),
+            "Connected",
+            "Lost",
+            "Closed Won"
+          ];
+          setStatuses(Array.from(new Set(dynamicStatuses)));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchContacts = () => {
     setLoading(true);
@@ -58,18 +87,75 @@ export default function ContactsPage() {
       .finally(() => setLoading(false));
   };
 
+  const updateUrl = (newFilter: string, newPage: number, newSearch: string, newLimit: number) => {
+    const params = new URLSearchParams();
+    if (newSearch) params.set("search", newSearch);
+    if (newFilter && newFilter !== "All Contacts") params.set("status", newFilter);
+    if (newPage > 1) params.set("page", newPage.toString());
+    if (newLimit !== 10) params.set("limit", newLimit.toString());
+    
+    const query = params.toString();
+    router.replace(`/contacts${query ? `?${query}` : ""}`, { scroll: false });
+  };
+
+  const handleFilterChange = (newStatus: string) => {
+    setFilter(newStatus);
+    setCurrentPage(1);
+    setSelectedIds([]);
+    updateUrl(newStatus, 1, search, itemsPerPage);
+  };
+
+  const handleSearchChange = (newSearch: string) => {
+    setSearch(newSearch);
+    setCurrentPage(1);
+    updateUrl(filter, 1, newSearch, itemsPerPage);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    setSelectedIds([]);
+    updateUrl(filter, newPage, search, itemsPerPage);
+  };
+
+  // Fetch contacts whenever search, filter, or dates change
   useEffect(() => {
     fetchContacts();
-    setCurrentPage(1); 
-    setSelectedIds([]); // Clear selections on new search/filter
   }, [search, filter, startDate, endDate]);
 
-  const totalPages = Math.ceil(contacts.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
+  // Listen to browser Back/Forward navigation to restore page & filter
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const p = parseInt(params.get("page") || "1", 10);
+      const s = params.get("status") || "All Contacts";
+      const q = params.get("search") || "";
+      const l = parseInt(params.get("limit") || "10", 10);
+      setCurrentPage(isNaN(p) || p < 1 ? 1 : p);
+      setFilter(s);
+      setSearch(q);
+      setItemsPerPage(isNaN(l) || l < 1 ? 10 : l);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const totalPages = Math.max(1, Math.ceil(contacts.length / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
   const currentContacts = contacts.slice(startIndex, startIndex + itemsPerPage);
 
-  const handlePrev = () => setCurrentPage((p) => Math.max(1, p - 1));
-  const handleNext = () => setCurrentPage((p) => Math.min(totalPages, p + 1));
+  const handlePrev = () => {
+    if (currentPage > 1) {
+      handlePageChange(currentPage - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      handlePageChange(currentPage + 1);
+    }
+  };
 
   // --- IMPORT / EXPORT LOGIC ---
   const downloadCSV = (dataToExport: any[], filename: string) => {
@@ -256,10 +342,10 @@ export default function ContactsPage() {
         {/* Toolbar */}
         <div className="p-4 border-b border-gray-200 flex flex-col xl:flex-row gap-4 justify-between items-center bg-gray-50">
           <div className="flex gap-2 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 hide-scrollbar shrink-0">
-            {Statuses.map(status => (
+            {statuses.map(status => (
               <button
                 key={status}
-                onClick={() => setFilter(status)}
+                onClick={() => handleFilterChange(status)}
                 className={clsx(
                   "px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors",
                   filter === status
@@ -281,13 +367,33 @@ export default function ContactsPage() {
                 <Trash2 className="w-4 h-4" /> Bulk Delete ({selectedIds.length})
               </button>
             )}
+            
+            <div className="flex items-center gap-2 text-sm text-gray-600 bg-white border border-gray-300 px-2.5 py-1.5 rounded-lg shadow-sm">
+              <span className="text-xs text-gray-400 font-medium select-none">Show</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setItemsPerPage(val);
+                  setCurrentPage(1);
+                  updateUrl(filter, 1, search, val);
+                }}
+                className="border-none bg-transparent outline-none pr-1 font-semibold text-xs text-gray-700 cursor-pointer focus:ring-0 focus:border-none focus:outline-none"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+
             <div className="relative w-full sm:w-64">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search by name or email..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary shadow-sm"
               />
             </div>
@@ -361,7 +467,7 @@ export default function ContactsPage() {
                 </tr>
               ) : (
                 currentContacts.map((contact, index) => (
-                  <tr key={contact._id} className={clsx("transition-colors cursor-pointer group", selectedIds.includes(contact._id) ? "bg-orange-50/50" : "hover:bg-gray-50")} onClick={() => window.location.href=`/contacts/${contact._id}`}>
+                  <tr key={contact._id} className={clsx("transition-colors cursor-pointer group", selectedIds.includes(contact._id) ? "bg-orange-50/50" : "hover:bg-gray-50")} onClick={() => router.push(`/contacts/${contact._id}`)}>
                     <td className="px-6 py-4 text-sm text-gray-500 font-medium border-r border-gray-50 text-center">
                       {startIndex + index + 1}
                     </td>
@@ -418,25 +524,45 @@ export default function ContactsPage() {
         
         {/* Pagination Controls */}
         {!loading && contacts.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600 bg-gray-50">
+          <div className="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-600 bg-gray-50">
             <div>
-              Showing <span className="font-medium">{startIndex + 1}</span> to <span className="font-medium">{Math.min(startIndex + itemsPerPage, contacts.length)}</span> of <span className="font-medium">{contacts.length}</span> entries
+              Showing <span className="font-medium">{contacts.length === 0 ? 0 : startIndex + 1}</span> to <span className="font-medium">{Math.min(startIndex + itemsPerPage, contacts.length)}</span> of <span className="font-medium">{contacts.length}</span> entries
               {selectedIds.length > 0 && (
                 <span className="ml-3 text-primary font-medium">({selectedIds.length} rows selected)</span>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button 
                 onClick={handlePrev} 
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white font-medium"
+                disabled={safeCurrentPage <= 1}
+                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white font-medium text-xs"
               >
                 <ChevronLeft className="w-4 h-4" /> Previous
               </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 2)
+                .map((p, idx, arr) => (
+                  <span key={p} className="flex items-center">
+                    {idx > 0 && arr[idx - 1] !== p - 1 && (
+                      <span className="px-1 text-gray-400 select-none">...</span>
+                    )}
+                    <button
+                      onClick={() => handlePageChange(p)}
+                      className={clsx(
+                        "w-8 h-8 flex items-center justify-center rounded text-xs font-semibold transition-colors border",
+                        safeCurrentPage === p
+                          ? "bg-primary text-white border-primary shadow-sm"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  </span>
+                ))}
               <button 
                 onClick={handleNext} 
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white font-medium"
+                disabled={safeCurrentPage >= totalPages}
+                className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-white font-medium text-xs"
               >
                 Next <ChevronRight className="w-4 h-4" />
               </button>

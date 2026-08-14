@@ -1,4 +1,15 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Configure fallback public DNS servers and force IPv4 result order to resolve MongoDB SRV records reliably.
+try {
+  if (typeof dns.setDefaultResultOrder === 'function') {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+  dns.setServers(['1.1.1.1', '8.8.8.8']);
+} catch (e) {
+  console.warn('Failed to configure custom DNS settings:', e);
+}
 
 // Fallback to locally running mongodb instance if .env is missing it, but it should be there.
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -26,6 +37,7 @@ async function connectToDatabase() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      family: 4,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {

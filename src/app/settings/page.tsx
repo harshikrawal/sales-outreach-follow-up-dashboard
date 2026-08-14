@@ -14,11 +14,18 @@ type DynamicOption = {
   order: number;
 };
 
+type FollowUpStep = {
+  id: string;
+  label: string;
+  interval: number;
+};
+
 type SettingsData = {
   firstFollowUpInterval: number;
   secondFollowUpInterval: number;
   contactSources: DynamicOption[];
   niches: DynamicOption[];
+  followUpSteps: FollowUpStep[];
 };
 
 export default function SettingsPage() {
@@ -30,6 +37,7 @@ export default function SettingsPage() {
       secondFollowUpInterval: 7,
       contactSources: [],
       niches: [],
+      followUpSteps: [],
     },
   });
 
@@ -43,12 +51,24 @@ export default function SettingsPage() {
     name: "niches",
   });
 
+  const { fields: followUpFields, append: appendFollowUp, remove: removeFollowUp } = useFieldArray({
+    control,
+    name: "followUpSteps",
+  });
+
   useEffect(() => {
     fetch("/api/settings")
       .then((res) => res.json())
       .then((res) => {
         if (res.success && res.data) {
-          reset(res.data);
+          const data = { ...res.data };
+          if (!data.followUpSteps || data.followUpSteps.length === 0) {
+            data.followUpSteps = [
+              { id: '1', label: 'First Follow-Up', interval: data.firstFollowUpInterval || 5 },
+              { id: '2', label: 'Second Follow-Up', interval: data.secondFollowUpInterval || 7 }
+            ];
+          }
+          reset(data);
         }
       })
       .catch(() => toast.error("Failed to load settings"))
@@ -56,12 +76,17 @@ export default function SettingsPage() {
   }, [reset]);
 
   const onSubmit = async (data: SettingsData) => {
+    const payload = {
+      ...data,
+      firstFollowUpInterval: data.followUpSteps[0]?.interval ?? data.firstFollowUpInterval ?? 5,
+      secondFollowUpInterval: data.followUpSteps[1]?.interval ?? data.secondFollowUpInterval ?? 7,
+    };
     const loadingToast = toast.loading("Saving settings...");
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       
@@ -144,30 +169,64 @@ export default function SettingsPage() {
       <div className="space-y-8">
         {/* Intervals Section */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Follow-Up Intervals</h2>
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Follow-Up (Days)
-              </label>
-              <input
-                type="number"
-                {...register("firstFollowUpInterval", { valueAsNumber: true })}
-                className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-sm focus:ring-primary focus:border-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">Days to wait after initial outreach.</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Second Follow-Up (Days)
-              </label>
-              <input
-                type="number"
-                {...register("secondFollowUpInterval", { valueAsNumber: true })}
-                className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 text-sm focus:ring-primary focus:border-primary"
-              />
-              <p className="text-xs text-gray-500 mt-1">Days to wait after first follow up.</p>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Follow-Up Intervals</h2>
+            <button
+              onClick={() => {
+                const stepNames = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"];
+                const nextNum = followUpFields.length + 1;
+                const prefix = stepNames[followUpFields.length] || `${nextNum}th`;
+                appendFollowUp({
+                  id: Math.random().toString(36).substr(2, 9),
+                  label: `${prefix} Follow-Up`,
+                  interval: 7
+                });
+              }}
+              className="text-primary hover:text-orange-700 text-sm font-medium flex items-center gap-1"
+              title="Add Follow-Up Step"
+            >
+              <Plus className="w-4 h-4" /> Add Step
+            </button>
+          </div>
+          
+          <div className="space-y-4">
+            {followUpFields.map((field, index) => (
+              <div key={field.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                <GripVertical className="w-4 h-4 text-gray-400 cursor-move hidden sm:block mt-2 sm:mt-0" />
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
+                      Step Name
+                    </label>
+                    <input
+                      type="text"
+                      {...register(`followUpSteps.${index}.label` as const)}
+                      className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-1.5 text-sm focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">
+                      Wait Days
+                    </label>
+                    <input
+                      type="number"
+                      {...register(`followUpSteps.${index}.interval` as const, { valueAsNumber: true })}
+                      className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-1.5 text-sm focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => removeFollowUp(index)}
+                  className="text-red-500 hover:text-red-700 mt-2 sm:mt-6"
+                  title="Delete Step"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+            {followUpFields.length === 0 && (
+              <p className="text-sm text-gray-500 italic">No follow-up steps defined.</p>
+            )}
           </div>
         </div>
 

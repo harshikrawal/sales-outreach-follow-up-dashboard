@@ -19,8 +19,19 @@ export async function GET() {
         niches: [
           { id: 'n_1', label: 'Construction', active: true, order: 0 },
           { id: 'n_2', label: 'Marketing Agency', active: true, order: 1 }
+        ],
+        followUpSteps: [
+          { id: '1', label: 'First Follow-Up', interval: 5 },
+          { id: '2', label: 'Second Follow-Up', interval: 7 }
         ]
       });
+    } else if (!settings.followUpSteps || settings.followUpSteps.length === 0) {
+      // Safely migrate existing legacy intervals into the new dynamic steps list
+      settings.followUpSteps = [
+        { id: '1', label: 'First Follow-Up', interval: settings.firstFollowUpInterval || 5 },
+        { id: '2', label: 'Second Follow-Up', interval: settings.secondFollowUpInterval || 7 }
+      ];
+      await settings.save();
     }
 
     return NextResponse.json({ success: true, data: settings });
@@ -46,6 +57,7 @@ export async function PUT(request: Request) {
     if (body.secondFollowUpInterval !== undefined) existingSettings.secondFollowUpInterval = body.secondFollowUpInterval;
     if (body.contactSources) existingSettings.contactSources = body.contactSources;
     if (body.niches) existingSettings.niches = body.niches;
+    if (body.followUpSteps) existingSettings.followUpSteps = body.followUpSteps;
 
     await existingSettings.save();
 

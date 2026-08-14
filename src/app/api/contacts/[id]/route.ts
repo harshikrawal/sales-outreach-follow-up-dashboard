@@ -40,14 +40,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       
       if (['Connected', 'Lost', 'Closed Won'].includes(newStatus)) {
         contact.nextFollowUpDate = undefined; // Terminal status
-      } else if (newStatus === 'First Follow-Up') {
-        const d = new Date();
-        d.setDate(d.getDate() + (settings?.firstFollowUpInterval || 5));
-        contact.nextFollowUpDate = d;
-      } else if (newStatus === 'Second Follow-Up') {
-        const d = new Date();
-        d.setDate(d.getDate() + (settings?.secondFollowUpInterval || 7));
-        contact.nextFollowUpDate = d;
+      } else {
+        const step = settings?.followUpSteps?.find((s: any) => s.label === newStatus);
+        if (step) {
+          const d = new Date();
+          d.setDate(d.getDate() + (step.interval || 7));
+          contact.nextFollowUpDate = d;
+        } else if (newStatus === 'First Follow-Up') {
+          const d = new Date();
+          d.setDate(d.getDate() + (settings?.firstFollowUpInterval || 5));
+          contact.nextFollowUpDate = d;
+        } else if (newStatus === 'Second Follow-Up') {
+          const d = new Date();
+          d.setDate(d.getDate() + (settings?.secondFollowUpInterval || 7));
+          contact.nextFollowUpDate = d;
+        }
       }
     }
 

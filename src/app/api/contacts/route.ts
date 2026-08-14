@@ -51,11 +51,15 @@ export async function POST(request: Request) {
     const Settings = (await import('@/models/Settings')).default;
     const settings = await Settings.findOne();
 
+    const firstStepInterval = settings?.followUpSteps && settings.followUpSteps.length > 0
+      ? settings.followUpSteps[0].interval
+      : (settings?.firstFollowUpInterval || 5);
+
     if (Array.isArray(body)) {
       const contactsToInsert = body.map((item: any) => {
         const nextFollowUp = new Date();
         if (settings) {
-          nextFollowUp.setDate(nextFollowUp.getDate() + settings.firstFollowUpInterval);
+          nextFollowUp.setDate(nextFollowUp.getDate() + firstStepInterval);
         }
         return {
           ...item,
@@ -80,7 +84,7 @@ export async function POST(request: Request) {
 
     if (settings) {
       const nextFollowUp = new Date();
-      nextFollowUp.setDate(nextFollowUp.getDate() + settings.firstFollowUpInterval);
+      nextFollowUp.setDate(nextFollowUp.getDate() + firstStepInterval);
       contact.nextFollowUpDate = nextFollowUp;
       await contact.save();
     }
@@ -107,5 +111,71 @@ export async function DELETE(request: Request) {
   } catch (error: any) {
     console.error("Failed to delete contacts", error);
     return NextResponse.json({ success: false, error: 'Failed to delete contacts' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    await connectToDatabase();
+    const body = await request.json();
+    const { ids, action } = body;
+    
+    if (!ids || !Array.isArray(ids)) {
+      return NextResponse.json({ success: false, error: 'Invalid contact IDs' }, { status: 400 });
+    }
+
+    if (action === 'mark_sent') {
+      const Settings = (await import('@/models/Settings')).default;
+      const settings = await Settings.findOne();
+      const steps = settings?.followUpSteps || [
+        { label: "First Follow-Up", interval: 5 },
+        { label: "Second Follow-Up", interval: 7 }
+      ];
+
+      const contacts = await Contact.find({ _id: { $in: ids } });
+      const promises = contacts.map(async (contact) => {
+        let nextStatus = "";
+        let interval = 0;
+
+        if (contact.status === "Approached") {
+          const firstStep = steps[0];
+          nextStatus = firstStep ? firstStep.label : "First Follow-Up";
+          interval = firstStep ? firstStep.interval : (settings?.firstFollowUpInterval || 5);
+        } else {
+          const currentIndex = steps.findIndex((s: any) => s.label === contact.status);
+          if (currentIndex !== -1 && currentIndex < steps.length - 1) {
+            const nextStep = steps[currentIndex + 1];
+            nextStatus = nextStep.label;
+            interval = nextStep.interval;
+          } else {
+            // Sequence complete
+            const lastStep = steps[steps.length - 1];
+            nextStatus = lastStep ? lastStep.label : "Second Follow-Up";
+            interval = 0;
+          }
+        }
+
+        contact.status = nextStatus;
+        contact.statusChangedDate = new Date();
+        
+        if (interval > 0) {
+          const d = new Date();
+          d.setDate(d.getDate() + interval);
+          contact.nextFollowUpDate = d;
+        } else {
+          contact.nextFollowUpDate = undefined;
+        }
+
+        return contact.save();
+      });
+
+      await Promise.all(promises);
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
+  } catch (error: any) {
+    console.error("Failed to bulk update contacts", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
