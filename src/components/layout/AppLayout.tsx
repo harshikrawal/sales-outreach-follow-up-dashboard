@@ -10,11 +10,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
   
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-background text-foreground overflow-x-hidden">
       <Sidebar />
-      <main className="flex-1 ml-64 p-8 min-w-0">
-        {children}
-      </main>
+      <div className="flex-1 pl-64 min-w-0">
+        <main className="p-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
