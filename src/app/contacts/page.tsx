@@ -291,18 +291,30 @@ function ContactsPageContent() {
           <p className="text-sm text-gray-500 mt-1 mb-4">
             Manage your network and review follow-up plans.
           </p>
-          <div className="w-full max-w-sm">
-            <DatePicker
-              selectsRange={true}
-              startDate={startDate}
-              endDate={endDate}
-              onChange={(update: any) => {
-                setDateRange(update);
-              }}
-              isClearable={true}
-              placeholderText="Select date range..."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-600 focus:ring-primary focus:border-primary shadow-sm outline-none bg-white cursor-pointer"
-            />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-xl">
+            <div className="w-full sm:w-1/2">
+              <DatePicker
+                selectsRange={true}
+                startDate={startDate}
+                endDate={endDate}
+                onChange={(update: any) => {
+                  setDateRange(update);
+                }}
+                isClearable={true}
+                placeholderText="Select date range..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-600 focus:ring-primary focus:border-primary shadow-sm outline-none bg-white cursor-pointer"
+              />
+            </div>
+            <div className="relative w-full sm:w-1/2">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary shadow-sm bg-white"
+              />
+            </div>
           </div>
         </div>
         
@@ -387,23 +399,12 @@ function ContactsPageContent() {
                 <option value="100">100</option>
               </select>
             </div>
-
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={search}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary shadow-sm"
-              />
-            </div>
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1250px] text-left border-collapse">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-white border-b border-gray-200">
                 <th className="px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase w-12 border-r border-gray-100 text-center">#</th>
