@@ -25,7 +25,7 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0">
+    <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col sticky top-0 shrink-0">
       <div className="p-6 border-b border-gray-100">
         <h1 className="text-xl font-bold tracking-tight text-primary">SalesOutreach</h1>
         <p className="text-xs text-gray-500 mt-1">Dashboard & Follow-ups</p>
