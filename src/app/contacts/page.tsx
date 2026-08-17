@@ -403,7 +403,7 @@ function ContactsPageContent() {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[1000px] text-left border-collapse">
             <thead>
               <tr className="bg-white border-b border-gray-200">
                 <th className="px-6 py-3 text-xs font-medium tracking-wider text-gray-500 uppercase w-12 border-r border-gray-100 text-center">#</th>
