@@ -58,6 +58,11 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
       if (contactRes.success) {
         setContact(contactRes.data);
         let seq = contactRes.data.emailSequence;
+        const steps = settingsRes.data?.followUpSteps || [
+          { label: "First Follow-Up" },
+          { label: "Second Follow-Up" }
+        ];
+
         if (!seq || seq.length === 0) {
           seq = [
             { id: "1", label: "Initial Outreach", content: contactRes.data.emails?.outreach || "" },
@@ -67,6 +72,26 @@ export default function ContactDetailPage({ params }: { params: Promise<{ id: st
             { id: "5", label: "Fourth Follow-Up", content: contactRes.data.emails?.followUp4 || "" },
           ].filter((item: any, idx: number) => idx < 3 || item.content !== "");
         }
+
+        // Dynamically grow the list if current settings have more steps
+        const expectedCount = 1 + steps.length;
+        if (seq.length < expectedCount) {
+          const updatedSeq = [...seq];
+          for (let i = seq.length; i < expectedCount; i++) {
+            const stepIdx = i - 1;
+            const stepLabel = steps[stepIdx]?.label || `Follow-Up ${i}`;
+            const fallbackKey = stepIdx === 0 ? "followUp1" : `followUp${stepIdx + 1}`;
+            const fallbackContent = contactRes.data.emails?.[fallbackKey] || "";
+
+            updatedSeq.push({
+              id: (i + 1).toString(),
+              label: stepLabel,
+              content: fallbackContent
+            });
+          }
+          seq = updatedSeq;
+        }
+
         setEmailSequence(seq);
         
         setEditForm({
